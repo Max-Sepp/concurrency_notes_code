@@ -3,9 +3,9 @@
 
 #include <atomic>
 
-#include "spinlock.h"
+#include "lock.h"
 
-class LocalSpinLock final : public Spinlock {
+class LocalSpinLock final : public ILock {
     public:
         void Lock() override {
             while (lock_flag_.exchange(true, std::memory_order_acquire)) {

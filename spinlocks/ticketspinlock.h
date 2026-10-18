@@ -2,9 +2,9 @@
 #define TICKETSPINLOCK_H
 
 #include <atomic>
-#include "spinlock.h"
+#include "lock.h"
 
-class TicketSpinLock final : public Spinlock {
+class TicketSpinLock final : public ILock {
     public:
         void Lock() override {
             int ticket = next_.fetch_add(1, std::memory_order_relaxed);

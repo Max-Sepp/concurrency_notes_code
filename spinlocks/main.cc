@@ -53,7 +53,6 @@
 
 #include "localspinlock.h"
 #include "simplelock.h"
-#include "spinlock.h"
 #include "ticketspinlock.h"
 
 using namespace std;
@@ -68,14 +67,14 @@ struct Shared {
   uint64_t state = 1;
 };
 
-unique_ptr<Spinlock> MakeLock(const string& name) {
+unique_ptr<ILock> MakeLock(const string& name) {
   if (name == "simple") return make_unique<SimpleLock>();
   if (name == "local") return make_unique<LocalSpinLock>();
   if (name == "ticket") return make_unique<TicketSpinLock>();
   return nullptr;
 }
 
-void Worker(Spinlock& lock, size_t iterations, size_t work, Shared& shared) {
+void Worker(ILock& lock, size_t iterations, size_t work, Shared& shared) {
   for (size_t i = 0; i < iterations; i++) {
     lock.Lock();
     shared.counter++;  // Deliberately non-atomic: only the lock keeps this correct.
@@ -101,7 +100,7 @@ int main(int argc, char** argv) {
   const size_t iterations = argc > 3 ? stoul(argv[3]) : kDefaultIterations;
   const size_t work = argc > 4 ? stoul(argv[4]) : kDefaultWork;
 
-  unique_ptr<Spinlock> lock = MakeLock(name);
+  unique_ptr<ILock> lock = MakeLock(name);
   if (!lock) {
     cerr << "unknown lock '" << name << "', expected simple, local or ticket\n";
     return EXIT_FAILURE;

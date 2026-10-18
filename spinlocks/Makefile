@@ -1,6 +1,7 @@
 CXX      ?= g++
 CXXFLAGS ?= -std=c++20 -Wall -Wextra -pthread
 BUILD    := build
+ROOT     := ..
 
 LOCKS   := simple local ticket
 THREADS ?= 8
@@ -8,7 +9,7 @@ ITERS   ?= 1000000
 WORK    ?= 100
 EVENTS  ?= cache-references,cache-misses,L1-dcache-loads,L1-dcache-load-misses,cycles,instructions
 
-SRCS := main.cc $(wildcard *.h)
+SRCS := main.cc $(wildcard *.h) $(ROOT)/lock.h
 
 MODES := debug release tsan
 FLAGS_debug   := -O0 -g
@@ -29,7 +30,7 @@ all: run
 
 define MODE_RULES
 $(BUILD)/spinlock_bench_$(1): $(SRCS) | $(BUILD)
-	$(CXX) $(CXXFLAGS) $(FLAGS_$(1)) -o $$@ main.cc
+	$(CXX) $(CXXFLAGS) -I$(ROOT) $(FLAGS_$(1)) -o $$@ main.cc
 endef
 $(foreach m,$(MODES),$(eval $(call MODE_RULES,$(m))))
 
