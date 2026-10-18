@@ -56,7 +56,7 @@ class SleepingMutex final : public ILock {
     return expected;
   }
 
-  std::atomic<Flag> flag_;
+  std::atomic<Flag> flag_{kUnlocked};
 };
 
 #endif  // SLEEPINGMUTEX_H
