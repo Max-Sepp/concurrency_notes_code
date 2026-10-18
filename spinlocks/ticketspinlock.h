@@ -13,11 +13,15 @@ class TicketSpinLock final : public Spinlock {
         }
 
         void Unlock() override {
-            serving_.fetch_add(1, std::memory_order_release);
+            // Only the holder writes serving_, so an atomic RMW is unneeded.
+            // Same ordering as fetch_add(release): relaxed read, release write.
+            serving_.store(serving_.load(std::memory_order_relaxed) + 1,
+                           std::memory_order_release);
         }
     private:
-        std::atomic<int> next_{0};
-        std::atomic<int> serving_{0};
+        // Separate cache lines to avoid false sharing between next_ and serving_.
+        alignas(64) std::atomic<int> next_{0};
+        alignas(64) std::atomic<int> serving_{0};
 };
 
 #endif // TICKETSPINLOCK_H
