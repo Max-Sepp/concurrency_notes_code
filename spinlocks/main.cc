@@ -9,9 +9,10 @@
 // Build:
 //   g++ -std=c++20 -O2 -g -pthread -o spinlock_bench main.cc
 //
-// Run (args: <simple|local> [threads] [iterations per thread] [work]):
+// Run (args: <simple|local|ticket> [threads] [iterations per thread] [work]):
 //   ./spinlock_bench simple 8 1000000 100
 //   ./spinlock_bench local  8 1000000 100
+//   ./spinlock_bench ticket 8 1000000 100
 //
 // Compare cache behaviour under perf (needs kernel.perf_event_paranoid <= 2,
 // e.g. `sudo sysctl kernel.perf_event_paranoid=1`):
@@ -33,6 +34,13 @@
 // at once and they all race to exchange() (a "thundering herd"). Raise `work`
 // and SimpleLock's waiters keep stealing the line from the holder while
 // LocalSpinLock's waiters stay quiet in their own caches.
+//
+// TicketSpinLock hands the lock out in FIFO order. Each waiter takes one
+// fetch_add() on next_ and then only reads serving_, so there is no exchange()
+// race on release. Every waiter still spins on the same serving_ line, though,
+// so each Unlock() invalidates it in all of their caches. Strict FIFO also means
+// the next owner is always a different core, and that core is often
+// descheduled once threads > cores.
 
 #include <chrono>
 #include <cstdint>
@@ -46,6 +54,7 @@
 #include "localspinlock.h"
 #include "simplelock.h"
 #include "spinlock.h"
+#include "ticketspinlock.h"
 
 using namespace std;
 
@@ -62,6 +71,7 @@ struct Shared {
 unique_ptr<Spinlock> MakeLock(const string& name) {
   if (name == "simple") return make_unique<SimpleLock>();
   if (name == "local") return make_unique<LocalSpinLock>();
+  if (name == "ticket") return make_unique<TicketSpinLock>();
   return nullptr;
 }
 
@@ -81,7 +91,7 @@ void Worker(Spinlock& lock, size_t iterations, size_t work, Shared& shared) {
 int main(int argc, char** argv) {
   if (argc < 2) {
     cerr << "usage: " << argv[0]
-         << " <simple|local> [threads] [iterations per thread] [work]\n";
+         << " <simple|local|ticket> [threads] [iterations per thread] [work]\n";
     return EXIT_FAILURE;
   }
 
@@ -93,7 +103,7 @@ int main(int argc, char** argv) {
 
   unique_ptr<Spinlock> lock = MakeLock(name);
   if (!lock) {
-    cerr << "unknown lock '" << name << "', expected simple or local\n";
+    cerr << "unknown lock '" << name << "', expected simple, local or ticket\n";
     return EXIT_FAILURE;
   }
 

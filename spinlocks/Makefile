@@ -2,7 +2,7 @@ CXX      ?= g++
 CXXFLAGS ?= -std=c++20 -Wall -Wextra -pthread
 BUILD    := build
 
-LOCKS   := simple local
+LOCKS   := simple local ticket
 THREADS ?= 8
 ITERS   ?= 1000000
 WORK    ?= 100
